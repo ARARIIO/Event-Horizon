@@ -21,6 +21,7 @@ export default function App() {
           alpha: false,
         }}
         style={{ position: 'absolute', inset: 0, background: '#07080A' }}
+        onCreated={() => horizon.markBootGl()}
       >
         <Scene />
         <AdaptiveDpr />

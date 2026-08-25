@@ -10,7 +10,8 @@ const _buf = new THREE.Vector2()
 /** Claude Design raymarcher as an R3F fullscreen ShaderMaterial. */
 export function RaymarchBlackHole() {
   const mat = useRef<THREE.ShaderMaterial>(null)
-  const { gl } = useThree()
+  const { gl, scene, camera } = useThree()
+  const bootFrames = useRef(0)
 
   const uniforms = useMemo(
     () => ({
@@ -57,6 +58,17 @@ export function RaymarchBlackHole() {
     m.uniforms.uFlareA.value = s.flareA
     m.uniforms.uHotI.value = s.hotI
     m.uniforms.uStars.value = s.stars
+
+    // Boot: compile once, then mark ready after the first drawn frame
+    if (!horizon.boot.shader) {
+      if (bootFrames.current === 0) {
+        gl.compile(scene, camera)
+        bootFrames.current = 1
+      } else if (bootFrames.current === 1) {
+        bootFrames.current = 2
+        horizon.markBootShader()
+      }
+    }
   })
 
   return (

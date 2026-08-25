@@ -109,8 +109,12 @@ export class HorizonController {
   zoom = 1
   mx: number | null = null
   my: number | null = null
+  /** Soft progress 0..1 shown on the loader bar */
   pre = 0
+  /** Milestone target the bar eases toward */
+  preTarget = 0
   readyE = 0
+  boot = { hud: false, gl: false, shader: false }
   rm = false
   hover = -1
   pinned = -1
@@ -123,7 +127,6 @@ export class HorizonController {
   W = 1
   H = 1
   last = 0
-  mountAt = 0
   shk = 0
   shkE = 0
   flare = 0
@@ -146,6 +149,35 @@ export class HorizonController {
     this.r = refs
   }
 
+  private bumpPreTarget() {
+    let t = 0
+    if (this.boot.hud) t += 0.28
+    if (this.boot.gl) t += 0.34
+    if (this.boot.shader) t += 0.38
+    this.preTarget = Math.min(1, t)
+  }
+
+  /** HUD bound / controller started */
+  markBootHud = () => {
+    if (this.boot.hud) return
+    this.boot.hud = true
+    this.bumpPreTarget()
+  }
+
+  /** WebGL context created (R3F Canvas onCreated) */
+  markBootGl = () => {
+    if (this.boot.gl) return
+    this.boot.gl = true
+    this.bumpPreTarget()
+  }
+
+  /** Shader compiled and at least one frame drawn */
+  markBootShader = () => {
+    if (this.boot.shader) return
+    this.boot.shader = true
+    this.bumpPreTarget()
+  }
+
   start() {
     this.rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (window.innerWidth < 760) {
@@ -160,8 +192,10 @@ export class HorizonController {
     this.props.grain = 0.12
     this.onResize()
     this.bindMarkers()
-    this.mountAt = performance.now()
+    this.pre = 0
+    this.readyE = 0
     this.running = true
+    this.markBootHud()
     window.addEventListener('resize', this.onResize)
     window.addEventListener('pointermove', this.onPointer, { passive: true })
     window.addEventListener('pointerdown', this.onDown)
@@ -381,8 +415,9 @@ export class HorizonController {
     this.flash = Math.max(0, this.flash - dt * 1.5)
 
     if (this.pre < 1) {
-      if (document.hidden) this.pre = 1
-      else this.pre = Math.min(1, (performance.now() - this.mountAt) / 1500)
+      const k = 1 - Math.exp(-dt * (this.preTarget >= 1 ? 5 : 3.2))
+      this.pre += (this.preTarget - this.pre) * k
+      if (this.preTarget >= 1 && this.pre > 0.997) this.pre = 1
     }
     this.readyE += ((this.pre >= 1 ? 1 : 0) - this.readyE) * Math.min(1, dt * 3)
 
